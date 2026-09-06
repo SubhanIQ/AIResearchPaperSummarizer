@@ -409,8 +409,17 @@ def _generate_all_sections(text: str, title: str = "", abstract: str = "") -> di
                     return {}
             return {}
 
-    raw = _ask_groq(messages)
-    data = _parse(raw)
+    try:
+        raw = _ask_groq(messages)
+        data = _parse(raw)
+    except Exception as e:
+        print(f"  (Groq fully unavailable ({e}), falling back to local Ollama...)")
+        try:
+            ollama_prompt = SYSTEM_PROMPT + " Always return valid JSON with the requested keys.\n\n" + user_content
+            raw = _ask_ollama(ollama_prompt, json_mode=True)
+            data = _parse(raw)
+        except Exception as ollama_error:
+            raise Exception(f"Both Groq and Ollama failed. Groq: {e} | Ollama: {ollama_error}")
 
     # One corrective retry when sections are missing/empty
     missing = [k for k in _SECTION_ORDER if not data.get(k)]
